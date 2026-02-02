@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Alembic
+alembic/versions/__pycache__/
+alembic_master/versions/__pycache__/
+alembic_tenant/versions/__pycache__/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.old
+database.py.old
+
+# Redis
+dump.rdb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation build
+docs/_build/
