@@ -81,6 +81,9 @@ async def health_check():
 # from app.modules.students.router import router as students_router
 # app.include_router(students_router, prefix="/api/v1/students", tags=["Students"])
 
+from app.modules.super_admin.router import router as super_admin_router
+app.include_router(super_admin_router, prefix="/api/v1/super-admin", tags=["Super Admin"])
+
 print("\n" + "="*60)
 print("🏫 Mindwhile ERP - Multi-Tenant Architecture v2.0")
 print("="*60)

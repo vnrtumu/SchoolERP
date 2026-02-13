@@ -1,380 +1,171 @@
-# Mindwhile ERP - Multi-Tenant School Management System
+# 🎓 Mindwhile ERP - Developer Guide & Documentation
 
-## 🏗️ Architecture: Database-per-School Isolation
+Welcome to the Mindwhile ERP project! 👋
 
-A sophisticated **Enterprise Multi-School ERP** system built with **Physical Database Isolation** architecture, where each school operates in its own isolated MySQL database.
-
-### Key Features
-
-✅ **Database-per-School Isolation** - Complete data separation at database level  
-✅ **Master Control Plane** - Centralized tenant registry and routing  
-✅ **Dynamic Tenant Resolution** - Subdomain or header-based tenant identification  
-✅ **Redis Caching** - High-performance tenant metadata caching  
-✅ **Granular RBAC** - 40+ permissions across 8 roles  
-✅ **Async Architecture** - SQLAlchemy 2.0 with aiomysql for high concurrency  
-✅ **Automated Provisioning** - Scripts to create new tenants with zero downtime  
-✅ **Multi-Database Migrations** - Parallel migration runner for 100+ databases  
+This documentation is designed to help you understand, run, and contribute to this **Multi-Tenant School Management System**. Whether you are a fresher or an experienced developer, this guide will walk you through the architecture, structure, and how to add new features.
 
 ---
 
-## 📐 Architecture Overview
+## 🏗️ What is this Project?
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Client Layer                             │
-│  schoola.erp.com  │  schoolb.erp.com  │  X-Tenant-ID: 123   │
-└───────────┬──────────────┬────────────────────┬─────────────┘
-            │              │                    │
-            └──────────────┴────────────────────┘
-                           │
-┌──────────────────────────▼───────────────────────────────────┐
-│                  FastAPI Application                         │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  Tenant Resolver → Redis Cache → Connection Manager  │   │
-│  └─────┬────────────────────────────────────────┬───────┘   │
-└────────┼────────────────────────────────────────┼───────────┘
-         │                                        │
-    ┌────▼────┐                              ┌───▼──────┐
-    │ Master  │                              │  Tenant  │
-    │   DB    │                              │   DBs    │
-    │Registry │                              │ School A │
-    └─────────┘                              │ School B │
-                                             │ School C │
-                                             └──────────┘
-```
+Imagine an apartment complex.
+- **The Building** is the software (Mindwhile ERP).
+- **The Apartments** are the Schools (Tenants).
+- **The Landlord** is the Super Admin.
 
-### Multi-T enancy Strategy
+Each apartment (School) has its own keys, furniture, and rooms. They don't share anything with their neighbors.
+In technical terms: **Every school has its own separate database.** This is called **Database-per-Tenant Multi-Tenancy**.
 
-- **Master Database (`master_registry`)**: Stores tenant registry, super admins, and routing metadata
-- **Tenant Databases**: Each school has its own isolated MySQL database
-- **Redis Cache**: Tenant metadata cached for <10ms resolution time
-- **Dynamic Routing**: Request → Tenant Resolution → Scoped DB Session
+### Key Technologies
+- **Python 3.12+**: The programming language.
+- **FastAPI**: The web framework (fast, async, modern).
+- **MySQL**: The database (stores data).
+- **Redis**: The cache (makes things fast).
+- **Docker** (Optional): Containerization.
 
 ---
 
-## 🚀 Quick Start
+## 📐 Architecture Explained (Simply)
 
-### Prerequisites
+When a user visits `school-a.erp.com`, here is what happens:
 
-- Python 3.12+
-- MySQL 8.0+
-- Redis 6.0+ (for tenant caching)
+1.  **Reception (Middleware)**: The app sees the request comes from `school-a`.
+2.  **Directory (Tenant Resolution)**: It checks a "Directory" (Redis Cache) to find `school-a`'s database credentials.
+3.  **Connection (Manager)**: It opens a connection *specifically* to `school-a`'s database.
+4.  **Service**: The code runs (gets students, marks attendance, etc.) using that connection.
+5.  **Response**: Data is sent back.
 
-### Installation
-
-1. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Generate encryption key** (for tenant DB passwords):
-   ```bash
-   python scripts/generate_key.py
-   ```
-   Copy the generated key to [.env](file:///Users/venkatreddy/Desktop/MindwhileERP/mindwhile-erp-fastapi/.env) as `TENANT_PASSWORD_ENCRYPTION_KEY`
-
-3. **Configure environment** ([.env](file:///Users/venkatreddy/Desktop/MindwhileERP/mindwhile-erp-fastapi/.env)):
-   ```env
-   # Master Database (Control Plane)
-   MASTER_DATABASE_URL=mysql+aiomysql://root:password@localhost:3306/master_registry
-   
-   # Redis
-   REDIS_HOST=localhost
-   REDIS_PORT=6379
-   
-   # Security
-   SECRET_KEY=your-secret-key
-   TENANT_PASSWORD_ENCRYPTION_KEY=<generated-key>
-   ```
-
-4. **Create master database**:
-   ```bash
-   python create_master_database.py
-   ```
-
-5. **Run master DB migrations**:
-   ```bash
-   alembic -c alembic_master.ini upgrade head
-   ```
-
-6. **Start Redis** (if not running):
-   ```bash
-   redis-server
-   ```
-
-7. **Start application**:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+**Result**: `School A` can never see `School B`'s data because they are in completely different databases!
 
 ---
 
-## 🏫 Tenant Management
+## 📂 Project Structure (Where is everything?)
 
-### Provision a New School
+Understanding the folder structure is key to contributing.
 
 ```bash
-python scripts/provision_tenant.py \
-    --subdomain greenwood \
-    --name "Greenwood International School" \
-    --code GIS001 \
-    --db-name greenwood_erp \
-    --db-user root \
-    --db-password SecurePass123 \
-    --root-password YourMySQLRootPassword
-```
-
-This script will:
-1. ✅ Check for conflicts (subdomain/code uniqueness)
-2. ✅ Create isolated MySQL database for the school
-3. ✅ Register tenant in master registry (encrypted credentials)
-4. ✅ Run migrations on tenant database
-5. ✅ Seed roles and permissions
-
-### Access Tenant
-
-**Option 1: Subdomain** (Production)
-```
-http://greenwood.erp.com/api/v1/students
-```
-
-**Option 2: Header** (Development/Testing)
-```bash
-curl -H "X-Tenant-ID: 1" http://localhost:8000/api/v1/students
-```
-
-**Option 3: Header Subdomain** (Local Development)
-```bash
-curl -H "X-Tenant-Subdomain: greenwood" http://localhost:8000/api/v1/students
-```
-
----
-
-## 🔐 RBAC System
-
-### Roles
-
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `super_admin` | Global cross-tenant access | ALL |
-| `school_admin` | Full school management | All within school |
-| `principal` | School leadership | View all, reports |
-| [teacher](file:///Users/venkatreddy/Desktop/MindwhileERP/mindwhile-erp-fastapi/app/modules/teachers/router.py#26-33) | Teaching staff | Attendance, marks, students |
-| [student](file:///Users/venkatreddy/Desktop/MindwhileERP/mindwhile-erp-fastapi/app/modules/students/router.py#26-33) | Student portal | Own data only |
-| `parent` | Parent/guardian | Child's data only |
-| `accountant` | Finance management | Fees, payments, reports |
-| `receptionist` | Front desk | Student intake, basic ops |
-
-### Permission Categories
-
-**Students** (5): `students.view`, `students.create`, `students.edit`, `students.delete`, `students.export`  
-**Teachers** (4): `teachers.view`, `teachers.create`, `teachers.edit`, `teachers.delete`  
-**Attendance** (4): `attendance.view`, `attendance.mark`, `attendance.edit`, `attendance.report`  
-**Marks** (5): `marks.view`, `marks.enter`, `marks.edit`, `marks.publish`, `marks.view_all`  
-**Fees** (5): `fees.view`, `fees.collect`, `fees.edit`, `fees.waive`, `fees.report`  
-**Administration** (3): `school.settings`, `users.manage`, `roles.manage`  
-
-### Usage in Endpoints
-
-```python
-from app.rbac.decorators import require_permissions
-from app.rbac.constants import Permission
-
-@router.post("/students")
-@require_permissions(Permission.STUDENTS_CREATE)
-async def create_student(
-    student: StudentCreate,
-    db: AsyncSession = Depends(get_tenant_db),
-    current_user = Depends(get_current_user)
-):
-    # User must have students.create permission
-    ...
-```
-
----
-
-## 📊 Project Structure
-
-```
 mindwhile-erp-fastapi/
 ├── app/
-│   ├── main.py                      # Application entry
-│   ├── config.py                    # Settings
+│   ├── main.py                # 🏁 The entry point. Starts the app.
+│   ├── config.py              # ⚙️ Settings (DB URLs, Secret Keys).
 │   │
-│   ├── tenancy/                     # 🆕 Multi-tenancy engine
-│   │   ├── models.py                # School, SuperAdmin models
-│   │   ├── database.py              # get_tenant_db, get_master_db
-│   │   ├── resolver.py              # Tenant resolution logic
-│   │   ├── manager.py               # Connection pooling
-│   │   ├── cache.py                 # Redis caching
-│   │   ├── encryption.py            # Password encryption
-│   │   └── schemas.py               # Tenant schemas
+│   ├── modules/               # 📦 BUSINESS LOGIC (Where you will work most!)
+│   │   ├── auth/              # Login, Logout logic.
+│   │   ├── students/          # Student management.
+│   │   ├── teachers/          # Teacher management.
+│   │   └── ...
 │   │
-│   ├── rbac/                        # 🆕 RBAC system
-│   │   ├── constants.py             # Permissions & roles
-│   │   ├── models.py                # Role, Permission models
-│   │   ├── decorators.py            # @require_permissions
-│   │   ├── engine.py                # Permission evaluation
-│   │   └── schemas.py               # RBAC schemas
+│   ├── tenancy/               # 🏘️ The Engine Room (Don't touch unless you know what you're doing)
+│   │   ├── database.py        # Gives you the correct DB session.
+│   │   ├── middleware.py      # Figures out which school is calling.
+│   │   └── manager.py         # Manages DB connections.
 │   │
-│   ├── modules/                     # Business modules
-│   │   ├── students/
-│   │   ├── teachers/
-│   │   ├── courses/
-│   │   ├── attendance/
-│   │   └── finance/
-│   │
-│   └── core/                        # Infrastructure
-│       ├── security.py
-│       ├── dependencies.py
-│       └── exceptions.py
+│   └── rbac/                  # 🛡️ Permissions (Who can do what?)
+│       └── decorators.py      # @require_permissions()
 │
-├── scripts/                         # 🆕 Management scripts
-│   ├── provision_tenant.py          # Create new tenant
-│   ├── generate_key.py              # Generate encryption key
-│   └── migrate_all_tenants.py       # Parallel migrations
+├── scripts/                   # 🛠️ Tools
+│   ├── provision_tenant.py    # Script to create a NEW school.
+│   └── generate_key.py        # Helper to make secure keys.
 │
-├── alembic_master/                  # 🆕 Master DB migrations
-│   ├── env.py
-│   └── versions/
-│
-├── alembic_tenant/                  # 🆕 Tenant DB migrations
-│   ├── env.py
-│   └── versions/
-│
-├── requirements.txt
-├── .env
-└── README.md
+├── alembic_master/            # 🗄️ Migrations for the "Landlord" DB (Global data).
+└── alembic_tenant/            # 🗄️ Migrations for "Apartment" DBs (School data).
 ```
 
 ---
 
-## 🔄 Database Migrations
+## 👩‍💻 Developer Cookbook
 
-### Master Database Migrations
+### 1. How to Run the App?
+See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for detailed installation steps.
 
-```bash
-# Create migration
-alembic -c alembic_master.ini revision --autogenerate -m "description"
+### 2. How to Add a New API?
 
-# Apply
-alembic -c alembic_master.ini upgrade head
-```
+Let's say you want to add a feature to **"List all Library Books"**.
 
-### Tenant Database Migrations
-
-**Single Tenant**:
-```bash
-TENANT_DB_NAME=greenwood_erp alembic -c alembic_tenant.ini upgrade head
-```
-
-**All Tenants in Parallel** (100+ databases):
-```bash
-python scripts/migrate_all_tenants.py --max-concurrent 10
-```
-
-This runs migrations across all active tenants concurrently with configurable parallelism.
-
----
-
-##  🛡️ Security Features
-
-1. **Database Isolation**: No cross-tenant data access possible
-2. **Encrypted Credentials**: Tenant DB passwords encrypted with Fernet
-3. **Connection Pooling**: Prevents connection exhaustion attacks
-4. **Redis Caching**: Reduces DB load, <10ms tenant resolution
-5. **JWT Authentication**: Stateless auth with role/permission claims
-6. **Permission Decorators**: Endpoint-level access control
-7. **Audit Trails**: Tenant context stored in session.info
-
----
-
-## 📝 API Documentation
-
-Once running, visit:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
----
-
-## 🧪 Testing Tenant Resolution
-
+**Step 1: Create the Model (The Table)**
+Go to `app/modules/library/models.py`:
 ```python
-# Test subdomain resolution
-curl -H "Host: schoola.erp.com" http://localhost:8000/api/v1/students
+from sqlalchemy import Column, String, Integer
+from app.tenancy.models import TenantBase
 
-# Test header resolution  
-curl -H "X-Tenant-ID: 1" http://localhost:8000/api/v1/students
-
-# Test local development
-curl -H "X-Tenant-Subdomain: schoola" http://localhost:8000/api/v1/students
+class Book(TenantBase):
+    __tablename__ = "books"
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255))
+    author = Column(String(255))
 ```
 
----
+**Step 2: Create the Schema (The Data Shape)**
+Go to `app/modules/library/schemas.py`:
+```python
+from pydantic import BaseModel
 
-## 🚨 Important Notes
-
-### Database Isolation
-- Each tenant has a **completely separate database**
-- No shared tables, no cross-tenant queries
-- Tenant resolution happens **at the request level**
-- Connection pools are **per-tenant**
-
-### Performance
-- **Redis caching**: Tenant metadata cached for 1 hour
-- **Connection pooling**: 20 connections per tenant + 10 overflow
-- **Async operations**: Full async/await with aiomysql
-- **Session scoping**: Automatic commit/rollback per request
-
-### Scaling Considerations
-- **Horizontal scaling**: Add more app servers (stateless)
-- **Database scaling**: Separate MySQL instances per region
-- **Cache scaling**: Redis cluster for high availability
-- **Connection limits**: Monitor `max_connections` in MySQL
-
----
-
-## 📦 Dependencies
-
-```
-FastAPI 0.115.0          # Web framework
-SQLAlchemy 2.0.36        # Async ORM
-aiomysql 0.3.2           # Async MySQL driver
-Redis 7.1.0              # Caching
-Alembic 1.14.0           # Migrations
-Pydantic 2.10.3          # Validation
-cryptography 44.0.0      # Encryption
-python-jose 3.3.0        # JWT
+class BookCreate(BaseModel):
+    title: str
+    author: str
 ```
 
+**Step 3: Create the Router (The Endpoint)**
+Go to `app/modules/library/router.py`:
+```python
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.tenancy.database import get_tenant_db
+from app.modules.library import schemas, models
+
+router = APIRouter()
+
+@router.post("/")
+async def add_book(book: schemas.BookCreate, db: AsyncSession = Depends(get_tenant_db)):
+    new_book = models.Book(**book.model_dump())
+    db.add(new_book)
+    await db.commit()
+    return {"message": "Book added!"}
+```
+
+**Step 4: Register the Router**
+Go to `app/main.py` and add:
+```python
+from app.modules.library.router import router as library_router
+app.include_router(library_router, prefix="/api/v1/library", tags=["Library"])
+```
+
+### 3. How to Run Migrations?
+Since we have many databases, migration is a bit different.
+
+- **For the Master DB (Landlord)**:
+  `alembic -c alembic_master.ini upgrade head`
+
+- **For a School DB (Tenant)**:
+  `TENANT_DB_NAME=school_a_db alembic -c alembic_tenant.ini upgrade head`
+
 ---
 
-## 📞 Support
+## 🤝 Contribution Guidelines
 
-For issues or questions:
-1. Check API docs at `/docs`
-2. Review implementation plan at `brain/*/implementation_plan.md`
-3. See logs for tenant resolution issues
+We welcome contributions! Here is how to do it right:
 
----
+1.  **Branch Naming**:
+    - `feature/add-library-module`
+    - `fix/login-error`
+    - `docs/update-readme`
 
-## 🎯 Next Steps
+2.  **Code Style**:
+    - Use variables that explain *what* they are (e.g., `student_list` not `sl`).
+    - Add comments for complex logic.
+    - We use `ruff` or `black` for formatting.
 
-Once setup is complete:
-1. Create first super admin
-2. Provision test tenant
-3. Create school admin for tenant
-4. Test authentication & permissions
-5. Configure subdomain routing (production)
-6. Set up backup strategy
-7. Configure monitoring & alerts
-
----
-
-**Status**: 🚧 **In Development** - Core infrastructure complete, integration in progress
+3.  **Pull Request Process**:
+    - Explain *what* you changed.
+    - Attach a screenshot if it's a UI change.
+    - Mention which issue you fixed (e.g., "Fixes #123").
 
 ---
 
-## License
+## 🆘 Need Help?
 
-Proprietary - Mindwhile ERP System © 2026
+- **Database Issues?** Check if MySQL is running.
+- **Connection Refused?** Check if Redis is running.
+- **"Tenant Not Found"?** Make sure you passed the Header `X-Tenant-Subdomain: yourschool`.
+
+Happy Coding! 🚀
