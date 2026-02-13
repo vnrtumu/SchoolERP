@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import the Base and all models
-from app.database import Base
+from app.shared.base_models import Base
 from app.config import settings
 
 # Import all models to ensure they're registered
