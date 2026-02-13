@@ -32,8 +32,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        case_sensitive=True
+        case_sensitive=True,
+        extra="ignore"
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Auto-fix Railway MySQL URL to use async driver
+        if self.MASTER_DATABASE_URL and self.MASTER_DATABASE_URL.startswith("mysql://"):
+            self.MASTER_DATABASE_URL = self.MASTER_DATABASE_URL.replace("mysql://", "mysql+aiomysql://")
 
 
 settings = Settings()
