@@ -1,10 +1,10 @@
 from sqlalchemy import String, Integer, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
-from app.shared.base_models import Base
+from app.shared.base_models import Base, MasterBase
 
 
-class School(Base):
+class School(MasterBase):
     """
     Master registry of all schools (tenants).
     Each school has its own isolated database.
@@ -52,7 +52,7 @@ class School(Base):
         return f"<School {self.name} ({self.subdomain})>"
 
 
-class SuperAdmin(Base):
+class SuperAdmin(MasterBase):
     """
     Global super administrators with cross-tenant access.
     Stored in master database, not tenant databases.

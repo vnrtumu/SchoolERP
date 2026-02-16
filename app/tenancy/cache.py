@@ -13,17 +13,25 @@ class TenantCache:
     
     async def connect(self):
         """Initialize Redis connection"""
-        if settings.REDIS_URL:
-            self.redis = await aioredis.from_url(
-                settings.REDIS_URL,
-                decode_responses=True
-            )
-        else:
-            self.redis = await aioredis.from_url(
-                f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
-                password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
-                decode_responses=True
-            )
+        try:
+            if settings.REDIS_URL:
+                self.redis = await aioredis.from_url(
+                    settings.REDIS_URL,
+                    decode_responses=True
+                )
+            else:
+                self.redis = await aioredis.from_url(
+                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
+                    password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
+                    decode_responses=True
+                )
+            # Test connection
+            await self.redis.ping()
+            print("✅ Redis cache connected")
+        except Exception as e:
+            print(f"⚠️ Redis connection failed: {e}")
+            print("⚠️ Running in database-fallback mode (no caching)")
+            self.redis = None
     
     async def disconnect(self):
         """Close Redis connection"""

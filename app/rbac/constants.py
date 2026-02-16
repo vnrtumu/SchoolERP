@@ -53,6 +53,18 @@ class Permission(str, Enum):
     USERS_MANAGE = "users.manage"
     ROLES_MANAGE = "roles.manage"
     
+    # Branch Management
+    BRANCH_VIEW = "branch.view"
+    BRANCH_CREATE = "branch.create"
+    BRANCH_EDIT = "branch.edit"
+    BRANCH_DELETE = "branch.delete"
+    BRANCH_SETTINGS = "branch.settings"
+    
+    # Cross-Branch
+    REPORTS_CROSS_BRANCH = "reports.cross_branch"
+    STUDENTS_VIEW_ALL_BRANCHES = "students.view_all_branches"
+    FEES_VIEW_ALL_BRANCHES = "fees.view_all_branches"
+    
     # System (Super Admin only)
     SYSTEM_TENANTS_MANAGE = "system.tenants.manage"
     SYSTEM_GLOBAL_ACCESS = "system.global_access"
@@ -62,8 +74,10 @@ class Role(str, Enum):
     """Predefined user roles"""
     
     SUPER_ADMIN = "super_admin"          # Global cross-tenant access
-    SCHOOL_ADMIN = "school_admin"        # Full access within school
-    PRINCIPAL = "principal"              # School leadership
+    SCHOOL_ADMIN = "school_admin"        # Full access within school (all branches)
+    BRANCH_ADMIN = "branch_admin"        # Full access within assigned branch
+    BRANCH_PRINCIPAL = "branch_principal"  # Read-only oversight of assigned branch
+    PRINCIPAL = "principal"              # School leadership (all branches)
     TEACHER = "teacher"                  # Teaching staff
     STUDENT = "student"                  # Student portal access
     PARENT = "parent"                    # Parent/guardian access
@@ -163,5 +177,59 @@ ROLE_PERMISSIONS = {
         Permission.STUDENTS_CREATE,
         Permission.TEACHERS_VIEW,
         Permission.FEES_VIEW,
+    ],
+    
+    Role.BRANCH_ADMIN: [
+        # Branch-scoped administrative permissions
+        Permission.STUDENTS_VIEW,
+        Permission.STUDENTS_CREATE,
+        Permission.STUDENTS_EDIT,
+        Permission.STUDENTS_DELETE,
+        Permission.STUDENTS_EXPORT,
+        Permission.TEACHERS_VIEW,
+        Permission.TEACHERS_CREATE,
+        Permission.TEACHERS_EDIT,
+        Permission.TEACHERS_DELETE,
+        Permission.COURSES_VIEW,
+        Permission.COURSES_CREATE,
+        Permission.COURSES_EDIT,
+        Permission.COURSES_DELETE,
+        Permission.ATTENDANCE_VIEW,
+        Permission.ATTENDANCE_MARK,
+        Permission.ATTENDANCE_EDIT,
+        Permission.ATTENDANCE_REPORT,
+        Permission.MARKS_VIEW,
+        Permission.MARKS_ENTER,
+        Permission.MARKS_EDIT,
+        Permission.MARKS_PUBLISH,
+        Permission.MARKS_VIEW_ALL,
+        Permission.FEES_VIEW,
+        Permission.FEES_COLLECT,
+        Permission.FEES_EDIT,
+        Permission.FEES_WAIVE,
+        Permission.FEES_REPORT,
+        Permission.REPORTS_ACADEMIC,
+        Permission.REPORTS_FINANCIAL,
+        Permission.REPORTS_ATTENDANCE,
+        Permission.BRANCH_VIEW,
+        Permission.BRANCH_SETTINGS,
+        Permission.USERS_MANAGE,  # Within their branch only
+    ],
+    
+    Role.BRANCH_PRINCIPAL: [
+        # Branch-scoped read-only oversight
+        Permission.STUDENTS_VIEW,
+        Permission.STUDENTS_EXPORT,
+        Permission.TEACHERS_VIEW,
+        Permission.COURSES_VIEW,
+        Permission.ATTENDANCE_VIEW,
+        Permission.ATTENDANCE_REPORT,
+        Permission.MARKS_VIEW_ALL,
+        Permission.FEES_VIEW,
+        Permission.FEES_REPORT,
+        Permission.REPORTS_ACADEMIC,
+        Permission.REPORTS_FINANCIAL,
+        Permission.REPORTS_ATTENDANCE,
+        Permission.BRANCH_VIEW,
     ],
 }

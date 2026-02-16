@@ -5,6 +5,8 @@ class UserRole(str, Enum):
     """User role enumeration"""
     SUPER_ADMIN = "super_admin"
     SCHOOL_ADMIN = "school_admin"
+    BRANCH_ADMIN = "branch_admin"
+    BRANCH_PRINCIPAL = "branch_principal"
     TEACHER = "teacher"
     STUDENT = "student"
     PARENT = "parent"

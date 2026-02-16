@@ -5,7 +5,12 @@ from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 
 # Base class for all ORM models (both master and tenant databases)
 class Base(DeclarativeBase):
-    """Declarative base for SQLAlchemy models"""
+    """Declarative base for SQLAlchemy models (Tenant DBs)"""
+    pass
+
+
+class MasterBase(DeclarativeBase):
+    """Declarative base for Master Database models"""
     pass
 
 

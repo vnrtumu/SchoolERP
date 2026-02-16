@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Import master DB models
-from app.shared.base_models import Base
+from app.shared.base_models import MasterBase
 from app.tenancy.models import School, SuperAdmin
 from app.config import settings
 
@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 # config.set_main_option("sqlalchemy.url", settings.MASTER_DATABASE_URL)
 
 # add your model's MetaData object here for 'autogenerate' support
-target_metadata = Base.metadata
+target_metadata = MasterBase.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
