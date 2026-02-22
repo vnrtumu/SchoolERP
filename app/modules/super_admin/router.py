@@ -4,9 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenancy.database import get_master_db
 from app.tenancy.models import SuperAdmin
 from app.core.security import verify_password, create_access_token
-from app.modules.super_admin.schemas import SuperAdminLoginRequest, Token
+from app.core.dependencies import get_current_super_admin
+from app.modules.super_admin.schemas import SuperAdminLoginRequest, Token, SuperAdminResponse, SuperAdminUpdateRequest
 
-router = APIRouter(prefix="/generated-admin", tags=["Super Admin"])
+router = APIRouter(tags=["Super Admin"])
 
 @router.post("/login", response_model=Token)
 async def login(
@@ -49,3 +50,55 @@ async def login(
     )
     
     return Token(access_token=access_token)
+
+
+@router.get("/me", response_model=SuperAdminResponse)
+async def get_current_user(
+    current_admin=Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_master_db)
+):
+    """
+    Get current logged in Super Admin details.
+    """
+    result = await db.execute(
+        select(SuperAdmin).where(SuperAdmin.id == int(current_admin["sub"]))
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Super Admin not found"
+        )
+        
+    return SuperAdminResponse.model_validate(user)
+
+@router.put("/me", response_model=SuperAdminResponse)
+async def update_current_user(
+    update_data: SuperAdminUpdateRequest,
+    current_admin=Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_master_db)
+):
+    """
+    Update current logged in Super Admin details.
+    """
+    result = await db.execute(
+        select(SuperAdmin).where(SuperAdmin.id == int(current_admin["sub"]))
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Super Admin not found"
+        )
+        
+    # Update fields provided in request
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(user, key, value)
+        
+    await db.commit()
+    await db.refresh(user)
+    
+    return SuperAdminResponse.model_validate(user)

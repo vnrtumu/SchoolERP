@@ -6,12 +6,14 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import the Base and all models
-from app.shared.base_models import Base
+from app.shared.base_models import Base, MasterBase
 from app.config import settings
 
 # Import all models to ensure they're registered
 from app.modules.schools.models import School
+from app.modules.branches.models import Branch
 from app.modules.auth.models import User
+from app.tenancy.models import SuperAdmin, SubscriptionPlan, Note
 from app.modules.students.models import Student
 from app.modules.teachers.models import Teacher
 from app.modules.courses.models import Course
@@ -28,7 +30,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
-target_metadata = Base.metadata
+target_metadata = MasterBase.metadata
 
 
 def run_migrations_offline() -> None:

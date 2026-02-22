@@ -41,6 +41,28 @@ def get_current_school_id(
     return school_id
 
 
+def get_current_super_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """Get and verify super admin from JWT token"""
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    
+    if payload is None:
+        raise UnauthorizedException(detail="Invalid authentication credentials")
+        
+    role = payload.get("role")
+    user_type = payload.get("type")
+    
+    if role != "super_admin" or user_type != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires super admin privileges"
+        )
+        
+    return payload
+
+
 class Pagination:
     """Pagination dependency"""
     def __init__(self, skip: int = 0, limit: int = 100):

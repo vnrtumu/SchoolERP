@@ -87,6 +87,15 @@ app.include_router(super_admin_router, prefix="/api/v1/super-admin", tags=["Supe
 from app.modules.schools.router_master import router as schools_master_router
 app.include_router(schools_master_router, prefix="/api/v1/master/schools", tags=["Schools (Master)"])
 
+from app.modules.plans.router import router as plans_router
+app.include_router(plans_router, prefix="/api/v1/master/plans", tags=["Subscription Plans (Master)"])
+
+from app.modules.notes.router import router as notes_router
+app.include_router(notes_router, prefix="/api/v1/master/notes", tags=["Personal Notes (Master)"])
+
+from app.modules.tickets.router import router as tickets_router
+app.include_router(tickets_router, prefix="/api/v1/master/tickets", tags=["Support Tickets (Master)"])
+
 from app.modules.branches.router import router as branches_router
 app.include_router(branches_router, prefix="/api/v1/branches", tags=["Branches"])
 

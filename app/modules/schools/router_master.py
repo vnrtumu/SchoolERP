@@ -6,6 +6,8 @@ import secrets
 from app.tenancy.database import get_master_db
 from app.tenancy.models import School
 from app.core.security import get_password_hash
+from app.core.dependencies import get_current_super_admin
+from app.tenancy.provisioning import provision_new_tenant
 from pydantic import BaseModel, Field, EmailStr
 from datetime import datetime
 
@@ -79,6 +81,7 @@ async def list_schools(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     is_active: Optional[bool] = None,
+    current_admin=Depends(get_current_super_admin),
     db: AsyncSession = Depends(get_master_db)
 ):
     """
@@ -111,6 +114,7 @@ async def list_schools(
 @router.post("/", response_model=SchoolResponseMaster, status_code=status.HTTP_201_CREATED)
 async def create_school(
     school_data: SchoolCreateMaster,
+    current_admin=Depends(get_current_super_admin),
     db: AsyncSession = Depends(get_master_db)
 ):
     """
@@ -144,6 +148,14 @@ async def create_school(
     # Generate database name from subdomain
     db_name = f"{school_data.subdomain.lower().replace('-', '_')}_db"
     
+    # Actually create the Database and apply schema structure via Alembic
+    success = await provision_new_tenant(db_name)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to provision database '{db_name}'. Please check server logs."
+        )
+    
     # Encrypt database password
     encrypted_password = get_password_hash(school_data.db_password)
     
@@ -175,6 +187,7 @@ async def create_school(
 @router.get("/{school_id}", response_model=SchoolResponseMaster)
 async def get_school(
     school_id: int,
+    current_admin=Depends(get_current_super_admin),
     db: AsyncSession = Depends(get_master_db)
 ):
     """
@@ -200,6 +213,7 @@ async def get_school(
 async def update_school(
     school_id: int,
     school_data: SchoolUpdateMaster,
+    current_admin=Depends(get_current_super_admin),
     db: AsyncSession = Depends(get_master_db)
 ):
     """
@@ -233,6 +247,7 @@ async def update_school(
 @router.delete("/{school_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_school(
     school_id: int,
+    current_admin=Depends(get_current_super_admin),
     db: AsyncSession = Depends(get_master_db)
 ):
     """
