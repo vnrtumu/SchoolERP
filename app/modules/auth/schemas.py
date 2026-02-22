@@ -31,6 +31,7 @@ class User(UserBase):
     id: int
     is_active: bool
     is_verified: bool
+    primary_branch_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     

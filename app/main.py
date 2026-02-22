@@ -84,8 +84,14 @@ async def health_check():
 from app.modules.super_admin.router import router as super_admin_router
 app.include_router(super_admin_router, prefix="/api/v1/super-admin", tags=["Super Admin"])
 
+from app.modules.schools.router_master import router as schools_master_router
+app.include_router(schools_master_router, prefix="/api/v1/master/schools", tags=["Schools (Master)"])
+
 from app.modules.branches.router import router as branches_router
 app.include_router(branches_router, prefix="/api/v1/branches", tags=["Branches"])
+
+from app.modules.branch_admin.router import router as branch_admin_router
+app.include_router(branch_admin_router, prefix="/api/v1/branch", tags=["Branch Admin"])
 
 print("\n" + "="*60)
 print("🏫 Mindwhile ERP - Multi-Tenant Architecture v2.0")

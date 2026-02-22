@@ -130,3 +130,53 @@ def require_role(*required_roles: str):
         
         return wrapper
     return decorator
+
+
+def branch_scoped(func: Callable):
+    """
+    Decorator that automatically injects branch_id into the function kwargs
+    when the current user is a BRANCH_ADMIN or BRANCH_PRINCIPAL.
+    
+    This enables automatic branch-level data scoping without repeating
+    the filtering logic in every endpoint.
+    
+    Usage:
+        @router.get("/students")
+        @require_permissions(Permission.STUDENTS_VIEW)
+        @branch_scoped
+        async def list_students(
+            db: AsyncSession = Depends(get_tenant_db),
+            current_user=None,
+            branch_id: int = None,  # Auto-injected for branch-level users
+        ):
+            query = select(Student)
+            if branch_id:
+                query = query.where(Student.branch_id == branch_id)
+            ...
+    
+    The decorator:
+    - Sets branch_id = user.primary_branch_id for BRANCH_ADMIN / BRANCH_PRINCIPAL
+    - Leaves branch_id as None for SCHOOL_ADMIN / SUPER_ADMIN (full access)
+    """
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        current_user = kwargs.get("current_user")
+        if current_user:
+            user_role = getattr(current_user, "role", None)
+            if user_role and user_role.value in (
+                Role.BRANCH_ADMIN.value,
+                Role.BRANCH_PRINCIPAL.value,
+            ):
+                branch_id = getattr(current_user, "primary_branch_id", None)
+                if branch_id:
+                    kwargs["branch_id"] = branch_id
+                else:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Branch-level user has no assigned branch"
+                    )
+        
+        return await func(*args, **kwargs)
+    
+    return wrapper
+

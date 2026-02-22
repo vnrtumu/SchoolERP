@@ -1,1 +1,1 @@
-"""Schools module - Multi-tenancy foundation"""
+"""Schools module - Master and tenant-level school management"""
