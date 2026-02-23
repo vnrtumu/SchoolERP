@@ -8,14 +8,16 @@ echo "Running migrations..."
 export PYTHONUNBUFFERED=1
 
 # Run tenant migrations
-if ! alembic upgrade head; then
+if ! alembic upgrade head 2>&1 | tee alembic.log; then
     echo "❌ Tenant migrations failed!"
+    cat alembic.log
     exit 1
 fi
 
 # Run master migrations
-if ! alembic -c alembic_master.ini upgrade head; then
+if ! alembic -c alembic_master.ini upgrade head 2>&1 | tee alembic_master.log; then
     echo "❌ Master migrations failed!"
+    cat alembic_master.log
     exit 1
 fi
 
