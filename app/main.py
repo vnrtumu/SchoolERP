@@ -7,7 +7,8 @@ if not hasattr(bcrypt, "__about__"):
     bcrypt.__about__ = About
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
@@ -66,9 +67,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal Server Error", "error_type": type(exc).__name__, "message": str(exc)}
     )
-
-from fastapi import Request
-from fastapi.responses import JSONResponse
 
 
 @app.get("/")
