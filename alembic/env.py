@@ -25,8 +25,8 @@ config = context.config
 if settings.MASTER_DATABASE_URL:
     escaped_url = settings.MASTER_DATABASE_URL.replace("%", "%%")
     # Workaround for aiomysql which doesn't support ssl-mode via query parameters directly in sqlalchemy
-    if "ssl-mode=" in escaped_url:
-        escaped_url = escaped_url.replace("ssl-mode=REQUIRED", "ssl=true")
+    if "ssl-mode=REQUIRED" in escaped_url:
+        escaped_url = escaped_url.replace("?ssl-mode=REQUIRED", "").replace("&ssl-mode=REQUIRED", "")
     config.set_main_option("sqlalchemy.url", escaped_url)
 
 # Interpret the config file for Python logging.
@@ -59,11 +59,19 @@ def do_run_migrations(connection: Connection) -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+import ssl
+
 async def run_async_migrations() -> None:
+    url = config.get_main_option("sqlalchemy.url")
+    connect_args = {}
+    if url and "aivencloud" in url:
+        connect_args["ssl"] = ssl.create_default_context()
+
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
