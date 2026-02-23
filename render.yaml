@@ -7,6 +7,8 @@ services:
     envVars:
       - key: PORT
         value: 8000
+      - key: PYTHON_VERSION
+        value: 3.12.3
       - key: ENVIRONMENT
         value: production
       - key: APP_NAME
