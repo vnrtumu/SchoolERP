@@ -4,6 +4,9 @@ set -e
 : "${PORT:=8000}"
 
 echo "Running migrations..."
+# Force unbuffered Python output to catch tracebacks
+export PYTHONUNBUFFERED=1
+
 # Run tenant migrations
 if ! alembic upgrade head; then
     echo "❌ Tenant migrations failed!"
