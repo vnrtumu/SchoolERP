@@ -1,3 +1,11 @@
+import bcrypt
+
+# Monkeypatch bcrypt to fix incompatibility with passlib 1.7.4+ and bcrypt 4.0.0+
+if not hasattr(bcrypt, "__about__"):
+    class About:
+        __version__ = bcrypt.__version__
+    bcrypt.__about__ = About
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

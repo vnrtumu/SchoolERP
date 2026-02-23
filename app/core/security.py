@@ -4,14 +4,6 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import settings
 
-import bcrypt
-
-# Monkeypatch bcrypt to fix incompatibility with passlib 1.7.4+ and bcrypt 4.0.0+
-if not hasattr(bcrypt, "__about__"):
-    class About:
-        __version__ = bcrypt.__version__
-    bcrypt.__about__ = About
-
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
