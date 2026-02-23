@@ -7,6 +7,24 @@ echo "Running migrations..."
 # Force unbuffered Python output to catch tracebacks
 export PYTHONUNBUFFERED=1
 
+echo "Verifying database network connectivity before migrations..."
+python3 -c "
+import asyncio, ssl, sys, os
+from sqlalchemy.ext.asyncio import create_async_engine
+try:
+    url = os.environ.get('MASTER_DATABASE_URL')
+    if url:
+        if 'ssl-mode=' in url: url = url[:url.find('?')]
+        engine = create_async_engine(url, connect_args={'ssl': ssl.create_default_context()}, echo=True)
+        async def go():
+            async with engine.connect() as conn: pass
+        asyncio.run(go())
+        print('✅ Network connection successful')
+except Exception as e:
+    print(f'❌ Network Error: {e}', file=sys.stderr)
+    sys.exit(1)
+" || exit 1
+
 # Run tenant migrations
 if ! alembic upgrade head > alembic.log 2>&1; then
     echo "❌ Tenant migrations failed!"
