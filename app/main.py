@@ -1,4 +1,5 @@
 import bcrypt
+print("DEBUG: Loading main.py - Version 4 (Fixed Imports)")
 
 # Monkeypatch bcrypt to fix incompatibility with passlib 1.7.4+ and bcrypt 4.0.0+
 if not hasattr(bcrypt, "__about__"):
