@@ -160,16 +160,35 @@ async def create_school(
     encrypted_password = get_password_hash(school_data.db_password)
     
     # Create new school
+    db_host = school_data.db_host
+    db_port = school_data.db_port
+    db_user = school_data.db_user
+    
+    # If using defaults, try to inherit from MASTER_DATABASE_URL for convenience
+    from app.config import settings
+    if db_host == "localhost" and "aivencloud" in settings.MASTER_DATABASE_URL:
+        try:
+            # Simple parsing of mysql+aiomysql://user:pass@host:port/db
+            from urllib.parse import urlparse
+            # replace +aiomysql with nothing so urlparse understands it
+            stripped_url = settings.MASTER_DATABASE_URL.replace("+aiomysql", "")
+            parsed = urlparse(stripped_url)
+            db_host = parsed.hostname or db_host
+            db_port = parsed.port or db_port
+            db_user = parsed.username or db_user
+        except:
+            pass
+
     new_school = School(
         subdomain=school_data.subdomain,
         name=school_data.name,
         code=school_data.code,
         email=school_data.email,
         phone=school_data.phone,
-        db_host=school_data.db_host,
-        db_port=school_data.db_port,
+        db_host=db_host,
+        db_port=db_port,
         db_name=db_name,
-        db_user=school_data.db_user,
+        db_user=db_user,
         db_password_encrypted=encrypted_password,
         max_students=school_data.max_students,
         max_teachers=school_data.max_teachers,
