@@ -38,14 +38,11 @@ MasterSessionLocal = async_sessionmaker(
 )
 
 
-async def get_master_db() -> AsyncGenerator[AsyncSession, None]:
+@asynccontextmanager
+async def get_master_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Dependency for master database session.
-    
-    Use this for:
-    - Tenant management (CRUD on schools)
-    - Super admin operations
-    - Cross-tenant queries
+    Context manager for master database session.
+    Useful for background tasks where Depends(get_master_db) is not available.
     """
     async with MasterSessionLocal() as session:
         try:
@@ -56,6 +53,14 @@ async def get_master_db() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+
+async def get_master_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency for master database session.
+    """
+    async with get_master_session() as session:
+        yield session
 
 
 @asynccontextmanager

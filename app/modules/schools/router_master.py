@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional
@@ -114,16 +114,15 @@ async def list_schools(
 @router.post("/", response_model=SchoolResponseMaster, status_code=status.HTTP_201_CREATED)
 async def create_school(
     school_data: SchoolCreateMaster,
+    background_tasks: BackgroundTasks,
     current_admin=Depends(get_current_super_admin),
     db: AsyncSession = Depends(get_master_db)
 ):
     """
     Create a new school (tenant).
     
-    This creates an entry in the master database registry.
-    Note: The actual tenant database must be created separately and migrations run.
-    
-    Only accessible by SUPER_ADMIN.
+    This creates an entry in the master database registry immediately.
+    The actual database provisioning and migrations run in the background.
     """
     # Check if subdomain already exists
     existing_subdomain = await db.execute(
@@ -148,29 +147,18 @@ async def create_school(
     # Generate database name from subdomain
     db_name = f"{school_data.subdomain.lower().replace('-', '_')}_db"
     
-    # Actually create the Database and apply schema structure via Alembic
-    success = await provision_new_tenant(db_name)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to provision database '{db_name}'. Please check server logs."
-        )
-    
     # Encrypt database password
     encrypted_password = get_password_hash(school_data.db_password)
     
-    # Create new school
+    # Inherit Aiven host/user if using defaults
     db_host = school_data.db_host
     db_port = school_data.db_port
     db_user = school_data.db_user
     
-    # If using defaults, try to inherit from MASTER_DATABASE_URL for convenience
     from app.config import settings
     if db_host == "localhost" and "aivencloud" in settings.MASTER_DATABASE_URL:
         try:
-            # Simple parsing of mysql+aiomysql://user:pass@host:port/db
             from urllib.parse import urlparse
-            # replace +aiomysql with nothing so urlparse understands it
             stripped_url = settings.MASTER_DATABASE_URL.replace("+aiomysql", "")
             parsed = urlparse(stripped_url)
             db_host = parsed.hostname or db_host
@@ -179,6 +167,7 @@ async def create_school(
         except:
             pass
 
+    # Create new school (initially inactive while provisioning)
     new_school = School(
         subdomain=school_data.subdomain,
         name=school_data.name,
@@ -193,14 +182,46 @@ async def create_school(
         max_students=school_data.max_students,
         max_teachers=school_data.max_teachers,
         subscription_tier=school_data.subscription_tier,
-        is_active=True
+        is_active=False  # Set to False while provisioning
     )
     
     db.add(new_school)
     await db.commit()
     await db.refresh(new_school)
     
+    # Schedule provisioning in background
+    background_tasks.add_task(
+        run_provisioning_task, 
+        new_school.id, 
+        db_name
+    )
+    
     return SchoolResponseMaster.model_validate(new_school)
+
+
+async def run_provisioning_task(school_id: int, db_name: str):
+    """Background task to provision a new tenant database"""
+    from app.tenancy.database import get_master_session
+    
+    print(f"BGTASK: Starting provisioning for school {school_id} (DB: {db_name})")
+    
+    success = await provision_new_tenant(db_name)
+    
+    async with get_master_session() as db:
+        result = await db.execute(select(School).where(School.id == school_id))
+        school = result.scalar_one_or_none()
+        
+        if school:
+            if success:
+                print(f"BGTASK: Provisioning SUCCESS for school {school_id}")
+                school.is_active = True
+            else:
+                print(f"BGTASK: Provisioning FAILED for school {school_id}")
+                # We keep it is_active=False or we could delete it
+                pass
+            await db.commit()
+            
+
 
 
 @router.get("/{school_id}", response_model=SchoolResponseMaster)
