@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: mindwhile-erp-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: sh start.sh
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENVIRONMENT
+        value: production
+      - key: APP_NAME
+        value: Mindwhile ERP
+      - key: APP_VERSION
+        value: 2.0.0
+      - key: DEBUG
+        value: "False"
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: REDIS_PORT
+        value: 6379
+      # Database URL should be configured in Render dashboard
+      - key: MASTER_DATABASE_URL
+        sync: false
+      # IMPORTANT: These must be configured in the Render Dashboard
+      - key: SECRET_KEY
+        sync: false
+      - key: TENANT_PASSWORD_ENCRYPTION_KEY
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PASSWORD
+        sync: false
