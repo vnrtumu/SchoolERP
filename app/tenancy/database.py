@@ -7,13 +7,25 @@ from app.tenancy.resolver import tenant_resolver
 from app.tenancy.manager import connection_manager
 from app.tenancy.models import School
 
+import ssl
+
+master_engine_kwargs = {
+    "pool_size": 20,
+    "max_overflow": 10,
+    "pool_pre_ping": True,
+    "echo": settings.DEBUG
+}
+
+if settings.MASTER_DATABASE_URL and "aivencloud" in settings.MASTER_DATABASE_URL:
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    master_engine_kwargs["connect_args"] = {"ssl": ctx}
+
 # Master database engine (Control Plane)
 master_engine = create_async_engine(
     settings.MASTER_DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_pre_ping=True,
-    echo=settings.DEBUG
+    **master_engine_kwargs
 )
 
 # Master database session maker

@@ -35,13 +35,24 @@ class ConnectionManager:
         if school.id not in self._engines:
             connection_string = self._build_connection_string(school)
             
+            engine_kwargs = {
+                "pool_size": 20,
+                "max_overflow": 10,
+                "pool_pre_ping": True,
+                "pool_recycle": 3600,
+                "echo": False
+            }
+            
+            if "aivencloud" in connection_string:
+                import ssl
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                engine_kwargs["connect_args"] = {"ssl": ctx}
+                
             self._engines[school.id] = create_async_engine(
                 connection_string,
-                pool_size=20,              # Connection pool size
-                max_overflow=10,           # Additional connections when pool exhausted
-                pool_pre_ping=True,        # Verify connections before using
-                pool_recycle=3600,         # Recycle connections after 1 hour
-                echo=False                 # Set to True for SQL debugging
+                **engine_kwargs
             )
         
         return self._engines[school.id]

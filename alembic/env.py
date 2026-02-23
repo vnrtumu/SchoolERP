@@ -65,7 +65,10 @@ async def run_async_migrations() -> None:
     url = config.get_main_option("sqlalchemy.url")
     connect_args = {}
     if url and "aivencloud" in url:
-        connect_args["ssl"] = ssl.create_default_context()
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ctx
 
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),

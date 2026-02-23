@@ -15,7 +15,10 @@ try:
     url = os.environ.get('MASTER_DATABASE_URL')
     if url:
         if 'ssl-mode=' in url: url = url[:url.find('?')]
-        engine = create_async_engine(url, connect_args={'ssl': ssl.create_default_context()}, echo=True)
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        engine = create_async_engine(url, connect_args={'ssl': ctx}, echo=True)
         async def go():
             async with engine.connect() as conn: pass
         asyncio.run(go())
