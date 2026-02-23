@@ -27,7 +27,15 @@ async def create_tenant_database(db_name: str) -> bool:
         base_url = settings.MASTER_DATABASE_URL.rsplit('/', 1)[0]
         
         # Create an engine connected to the MySQL server root
-        admin_engine = create_async_engine(base_url, echo=False)
+        connect_args = {}
+        if "aivencloud" in base_url:
+            import ssl
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            connect_args["ssl"] = ctx
+            
+        admin_engine = create_async_engine(base_url, connect_args=connect_args, echo=False)
         
         async with admin_engine.begin() as conn:
             # Create the database. MySQL requires this to be outside a transaction
@@ -68,6 +76,9 @@ def run_alembic_upgrade(db_url: str):
         sync_url_escaped = sync_url.replace('%', '%%')
         
         alembic_cfg.set_main_option("sqlalchemy.url", sync_url_escaped)
+        
+        # Capture the URL in an environment variable for Alembic's env.py to pick up
+        os.environ["CURRENT_TENANT_DB_URL"] = sync_url_escaped
         
         logger.info(f"Running Alembic migrations against {sync_url}...")
         

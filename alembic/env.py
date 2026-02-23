@@ -21,8 +21,14 @@ from app.modules.courses.models import Course
 # this is the Alembic Config object
 config = context.config
 
+import os
 # Override the sqlalchemy.url to use the dynamic environment variable for production
-if settings.MASTER_DATABASE_URL:
+# Prioritize CURRENT_TENANT_DB_URL if set (during provisioning)
+# Otherwise fall back to MASTER_DATABASE_URL
+tenant_db_url = os.environ.get("CURRENT_TENANT_DB_URL")
+if tenant_db_url:
+    config.set_main_option("sqlalchemy.url", tenant_db_url.replace("%", "%%"))
+elif settings.MASTER_DATABASE_URL:
     escaped_url = settings.MASTER_DATABASE_URL.replace("%", "%%")
     # Workaround for aiomysql which doesn't support ssl-mode via query parameters directly in sqlalchemy
     if "ssl-mode=REQUIRED" in escaped_url:
