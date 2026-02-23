@@ -17,16 +17,20 @@ async def create_tenant_database(db_name: str) -> bool:
     and issues a CREATE DATABASE command for the new tenant.
     """
     try:
-        # We need an administrative connection that is not bound to a specific DB 
-        # to execute CREATE DATABASE. Since SQLALchemy async engines struggle with 
-        # switching DB contexts mid-stream for DDL commands on MySQL, we will use
-        # the standard root connection URL but omit the database name.
+        # For Aiven/MySQL, we often need to connect to an existing DB first
+        # to execute administrative commands. We'll use the base URL but
+        # ensure it's pointing to the server root or 'defaultdb'.
         
-        # Parse the master URL. Example: mysql+aiomysql://root:password@localhost:3306/master_db
-        # We strip off the /master_db part.
-        base_url = settings.MASTER_DATABASE_URL.rsplit('/', 1)[0]
+        # Parse the master URL.
+        full_url = settings.MASTER_DATABASE_URL
+        if "aivencloud" in full_url:
+            # Connect to 'defaultdb' instead of just the root to be safer with some drivers
+            base_url = full_url.rsplit('/', 1)[0] + "/defaultdb"
+        else:
+            base_url = full_url.rsplit('/', 1)[0]
         
-        # Create an engine connected to the MySQL server root
+        print(f"DEBUG: Provisioning - Connecting to {base_url} to create {db_name}")
+        
         connect_args = {}
         if "aivencloud" in base_url:
             import ssl
@@ -35,18 +39,20 @@ async def create_tenant_database(db_name: str) -> bool:
             ctx.verify_mode = ssl.CERT_NONE
             connect_args["ssl"] = ctx
             
-        admin_engine = create_async_engine(base_url, connect_args=connect_args, echo=False)
+        admin_engine = create_async_engine(base_url, connect_args=connect_args, echo=True)
         
         async with admin_engine.begin() as conn:
-            # Create the database. MySQL requires this to be outside a transaction
-            # but SQLAlchemy handles basic DDL nicely if committed correctly.
-            logger.info(f"Creating database {db_name}...")
+            print(f"DEBUG: Executing CREATE DATABASE IF NOT EXISTS `{db_name}`")
+            # We use isolation_level="AUTOCOMMIT" if possible, but begin() should work for simple DDL
             await conn.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}`"))
-            logger.info(f"Database {db_name} created successfully.")
             
         await admin_engine.dispose()
+        print(f"DEBUG: Database {db_name} created or verified successfully.")
         return True
     except Exception as e:
+        import traceback
+        print(f"❌ ERROR: Failed to create database {db_name}")
+        print(traceback.format_exc())
         logger.error(f"Failed to create database {db_name}: {str(e)}")
         return False
 
@@ -57,7 +63,6 @@ def run_alembic_upgrade(db_url: str):
     """
     try:
         # Find path to alembic.ini relative to the root project directory
-        # The script is usually in app/tenancy/provisioning.py, we need to go up two levels
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(os.path.dirname(current_dir))
         alembic_ini_path = os.path.join(project_root, 'alembic.ini')
@@ -68,26 +73,27 @@ def run_alembic_upgrade(db_url: str):
         # Setup Alembic Config
         alembic_cfg = Config(alembic_ini_path)
         
-        # Override the sqlalchemy.url in the config to point to the new tenant DB
-        # Format expects standard sync driver: mysql+pymysql://...
-        sync_url = db_url.replace("mysql+aiomysql://", "mysql+pymysql://")
+        # USE aiomysql since env.py is set up for async!
+        # Do NOT replace with pymysql as it is not installed.
+        sync_url = db_url 
         
         # Escape % signs because ConfigParser uses them for string interpolation
         sync_url_escaped = sync_url.replace('%', '%%')
         
         alembic_cfg.set_main_option("sqlalchemy.url", sync_url_escaped)
-        
-        # Capture the URL in an environment variable for Alembic's env.py to pick up
         os.environ["CURRENT_TENANT_DB_URL"] = sync_url_escaped
         
-        logger.info(f"Running Alembic migrations against {sync_url}...")
+        print(f"DEBUG: Running Alembic upgrade on {sync_url}")
         
         # Run the upgrade
         command.upgrade(alembic_cfg, "head")
         
-        logger.info(f"Alembic migrations completed successfully.")
+        print(f"DEBUG: Alembic migrations completed successfully for {db_url}")
         return True
     except Exception as e:
+        import traceback
+        print(f"❌ ERROR: Failed to run Alembic migrations for {db_url}")
+        print(traceback.format_exc())
         logger.error(f"Failed to run Alembic migrations: {str(e)}")
         return False
 
@@ -98,6 +104,8 @@ async def provision_new_tenant(db_name: str) -> bool:
     2. Constructs the new database connection string
     3. Runs Alembic migrations to build tables within it
     """
+    print(f"DEBUG: Starting provisioning for tenant database: {db_name}")
+    
     # Step 1: Create Database
     success = await create_tenant_database(db_name)
     if not success:
@@ -108,7 +116,14 @@ async def provision_new_tenant(db_name: str) -> bool:
     new_db_url = f"{base_url}/{db_name}"
     
     # Step 3: Run Alembic migrations (offloaded to threadpool to avoid blocking event loop)
+    # We use a threadpool because command.upgrade is a blocking sync call
+    # even though env.py might be running async internally via asyncio.run
     loop = asyncio.get_running_loop()
     migration_success = await loop.run_in_executor(None, run_alembic_upgrade, new_db_url)
     
+    if migration_success:
+        print(f"✅ SUCCESSFULLY provisioned tenant: {db_name}")
+    else:
+        print(f"❌ FAILED to provision tenant: {db_name}")
+        
     return migration_success
