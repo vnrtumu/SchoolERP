@@ -27,7 +27,12 @@ class Settings(BaseSettings):
     TENANT_PASSWORD_ENCRYPTION_KEY: str
     
     # CORS
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:5173"]
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000", 
+        "http://localhost:8000", 
+        "http://localhost:5173",
+        "https://mindwhileerp.vercel.app"
+    ]
     
     model_config = SettingsConfigDict(
         env_file=".env",
