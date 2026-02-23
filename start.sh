@@ -30,12 +30,6 @@ except Exception as e:
     sys.exit(1)
 " || exit 1
 
-# Run tenant migrations
-if ! alembic upgrade head; then
-    echo "❌ Tenant migrations failed!" >&2
-    exit 1
-fi
-
 # Run master migrations
 if ! alembic -c alembic_master.ini upgrade head; then
     echo "❌ Master migrations failed!" >&2

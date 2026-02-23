@@ -34,7 +34,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
-target_metadata = MasterBase.metadata
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
