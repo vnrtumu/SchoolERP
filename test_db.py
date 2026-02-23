@@ -1,16 +1,20 @@
 import asyncio
-import os
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://mindwhile:mindwhile@localhost:5432/mindwhile_master"
-from sqlalchemy import select
-from app.tenancy.database import SessionLocalMaster
-from app.tenancy.models import SuperAdmin
+import ssl
+from sqlalchemy.ext.asyncio import create_async_engine
 
 async def test():
-    async with SessionLocalMaster() as db:
-        result = await db.execute(
-            select(SuperAdmin).where(SuperAdmin.id == 1)
+    try:
+        print("Connecting...")
+        ssl_context = ssl.create_default_context()
+        import os
+        url = os.environ.get("MASTER_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+        engine = create_async_engine(
+            url,
+            connect_args={"ssl": ssl_context}
         )
-        user = result.scalar_one_or_none()
-        print(f"User: {user}")
+        async with engine.connect() as conn:
+            print('Connected!')
+    except Exception as e:
+        print(f"Error: {e}")
 
 asyncio.run(test())

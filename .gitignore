@@ -33,8 +33,8 @@ env/
 .vscode/
 
 # Environment variables
-# .env
-# .env.local
+.env
+.env.local
 
 # Database
 *.db

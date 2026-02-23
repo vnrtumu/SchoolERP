@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenancy.database import get_master_db
 from app.tenancy.models import SuperAdmin
@@ -21,7 +21,12 @@ async def login(
     """
     # Query user from master DB
     result = await db.execute(
-        select(SuperAdmin).where(SuperAdmin.username == login_data.username)
+        select(SuperAdmin).where(
+            or_(
+                SuperAdmin.username == login_data.username,
+                SuperAdmin.email == login_data.username
+            )
+        )
     )
     user = result.scalar_one_or_none()
     
