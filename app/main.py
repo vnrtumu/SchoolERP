@@ -48,6 +48,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global Exception Handler for debugging production 500s
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    print(f"❌ GLOBAL ERROR: {str(exc)}")
+    print(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "error_type": type(exc).__name__, "message": str(exc)}
+    )
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 
 @app.get("/")
 async def root():
