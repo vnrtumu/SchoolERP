@@ -19,6 +19,9 @@ if config.config_file_name is not None:
 # Use URL from config or fallback to .ini
 if settings.MASTER_DATABASE_URL:
     escaped_url = settings.MASTER_DATABASE_URL.replace("%", "%%")
+    # Workaround for aiomysql which doesn't support ssl-mode via query parameters directly in sqlalchemy
+    if "ssl-mode=" in escaped_url:
+        escaped_url = escaped_url.replace("ssl-mode=REQUIRED", "ssl=true")
     config.set_main_option("sqlalchemy.url", escaped_url)
 
 # add your model's MetaData object here for 'autogenerate' support

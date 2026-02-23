@@ -24,6 +24,9 @@ config = context.config
 # Override the sqlalchemy.url to use the dynamic environment variable for production
 if settings.MASTER_DATABASE_URL:
     escaped_url = settings.MASTER_DATABASE_URL.replace("%", "%%")
+    # Workaround for aiomysql which doesn't support ssl-mode via query parameters directly in sqlalchemy
+    if "ssl-mode=" in escaped_url:
+        escaped_url = escaped_url.replace("ssl-mode=REQUIRED", "ssl=true")
     config.set_main_option("sqlalchemy.url", escaped_url)
 
 # Interpret the config file for Python logging.
